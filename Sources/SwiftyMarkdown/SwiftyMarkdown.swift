@@ -123,6 +123,17 @@ If that is not set, then the system default will be used.
 	#endif
 	public var fontSize : CGFloat = 0.0
 	public var fontStyle : FontStyle = .normal
+    
+    public var font: UIFont? {
+        didSet {
+            guard let font = font else {
+                return
+            }
+
+            fontName = font.fontName
+            fontSize = font.pointSize
+        }
+    }
 }
 
 @objc open class LineStyles : NSObject, FontProperties, LineProperties {
@@ -137,6 +148,16 @@ If that is not set, then the system default will be used.
 	public var alignment: NSTextAlignment = .left
     public var lineSpacing : CGFloat = 0.0
     public var paragraphSpacing : CGFloat = 0.0
+    public var font: UIFont? {
+        didSet {
+            guard let font = font else {
+                return
+            }
+
+            fontName = font.fontName
+            fontSize = font.pointSize
+        }
+    }
 }
 
 @objc open class LinkStyles : BasicStyles {
@@ -389,7 +410,7 @@ If that is not set, then the system default will be used.
 	
 	- returns: An NSAttributedString with the styles applied
 	*/
-	open func attributedString(from markdownString : String? = nil) -> NSAttributedString {
+    open func attributedString(from markdownString : String? = nil, size: CGSize? = nil) -> NSAttributedString {
 		
 		self.previouslyFoundTokens.removeAll()
 		self.perfomanceLog.start()
@@ -430,7 +451,7 @@ If that is not set, then the system default will be used.
 			self.previouslyFoundTokens.append(contentsOf: finalTokens)
 			self.perfomanceLog.tag(with: "(tokenising complete for line \(idx)")
 			
-			attributedString.append(attributedStringFor(tokens: finalTokens, in: line))
+			attributedString.append(attributedStringFor(tokens: finalTokens, in: line, size: size))
 			
 		}
 		
@@ -443,7 +464,7 @@ If that is not set, then the system default will be used.
 
 extension SwiftyMarkdown {
 	
-	func attributedStringFor( tokens : [Token], in line : SwiftyLine ) -> NSAttributedString {
+	func attributedStringFor( tokens : [Token], in line : SwiftyLine, size: CGSize? = nil ) -> NSAttributedString {
 		
 		var finalTokens = tokens
 		let finalAttributedString = NSMutableAttributedString()
@@ -592,10 +613,24 @@ extension SwiftyMarkdown {
 					continue
 				}
 				#if !os(macOS)
-				let image1Attachment = NSTextAttachment()
-				image1Attachment.image = UIImage(named: token.metadataStrings[imgIdx])
-				let str = NSAttributedString(attachment: image1Attachment)
-				finalAttributedString.append(str)
+                if let url = URL(string: token.metadataStrings[imgIdx]) {
+                    let image1Attachment = NSTextAttachment()
+                    let data = try? Data(contentsOf: url)
+                    // Try to load image from url
+                    if let data = data,
+                       let image = UIImage(data: data) {
+                        image1Attachment.image = image
+                        adjustTextAttachmentSize(image1Attachment,
+                                                 forImage: image, size: size)
+                        // Try to load image from local file store
+                    } else if let image = UIImage(named: token.metadataStrings[imgIdx]) {
+                        image1Attachment.image = image
+                        adjustTextAttachmentSize(image1Attachment,
+                                                 forImage: image, size: size)
+                    }
+                    let str = NSAttributedString(attachment: image1Attachment)
+                    finalAttributedString.append(str)
+                }
 				#elseif !os(watchOS)
 				let image1Attachment = NSTextAttachment()
 				image1Attachment.image = NSImage(named: token.metadataStrings[imgIdx])
@@ -618,4 +653,18 @@ extension SwiftyMarkdown {
 	
 		return finalAttributedString
 	}
+    
+    private func adjustTextAttachmentSize(_ textAttachment: NSTextAttachment,
+                                          forImage image: UIImage, size: CGSize? = nil) {
+        guard let size = size else { return }
+
+        // add padding to image
+        let preferredWidth = size.width - 10
+        let widthScalingFactor = image.size.width / preferredWidth
+
+        textAttachment.bounds = CGRect(x: 0,
+                                       y: 0,
+                                       width: image.size.width / widthScalingFactor,
+                                       height: image.size.height / widthScalingFactor)
+    }
 }
