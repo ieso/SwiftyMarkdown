@@ -120,7 +120,12 @@ public class SwiftyLineProcessor {
             }
             var output : String = (element.shouldTrim) ? text.trimmingCharacters(in: .whitespaces) : text
             let unprocessed = output
-			
+            
+            if element.token == "1. " {
+                // replace all text format "2. ", "3. ", ..etc with format "1. "
+                output = processOrderListRegex(output)
+            }
+            
 			if let hasToken = self.closeToken, unprocessed != hasToken {
 				return nil
 			}
@@ -242,6 +247,17 @@ public class SwiftyLineProcessor {
 			self.perfomanceLog.tag(with: "(line completed: \(heading)")
         }
         return foundAttributes
+    }
+    
+    func processOrderListRegex(_ text: String) -> String {
+        let regex = try? NSRegularExpression(pattern: "^[0-9]+. ", options: .caseInsensitive)
+        let range = NSMakeRange(0, text.count)
+        let result = regex?.stringByReplacingMatches(
+            in: text,
+            options: [],
+            range: range,
+            withTemplate: "1. ")
+        return result ?? text
     }
     
 }
