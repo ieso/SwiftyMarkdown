@@ -130,7 +130,7 @@ public class SwiftyLineProcessor {
 				return nil
 			}
             
-			if !text.contains(element.token) {
+			if !text.contains(element.token) && element.token != "1. " {
 				continue
 			}
 			
