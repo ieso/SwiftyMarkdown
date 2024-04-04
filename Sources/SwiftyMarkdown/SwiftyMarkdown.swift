@@ -550,7 +550,9 @@ extension SwiftyMarkdown {
 
 			attributes[.paragraphStyle] = paragraphStyle
 			finalTokens.insert(Token(type: .string, inputString: "\(indent)\(listItem)\t"), at: 0)
-            finalTokens.append(Token(type: .string, inputString: "\n"))
+            if markdownLineStyle == .orderedList {
+                finalTokens.append(Token(type: .string, inputString: "\n"))
+            }
 			
 		case .yaml:
 			lineProperties = body
